@@ -1,27 +1,11 @@
+from src.util.position import Position
+from src.util.error import IllegalCharError
+
 #######################################
 # CONSTANTS
 #######################################
 
 DIGITS = "0123456789"
-
-#######################################
-# ERRORS
-#######################################
-
-
-class Error:
-    def __init__(self, name, message):
-        self.name = name
-        self.message = message
-
-    def as_string(self):
-        return f"{self.name}: {self.message}"
-
-
-class IllegalCharError(Error):
-    def __init__(self, message):
-        super().__init__("Illegal character", message)
-
 
 #######################################
 # TOKENS
@@ -55,25 +39,24 @@ class Token:
 
 
 class Lexer:
-    def __init__(self, text):
+    def __init__(self, filename, text):
+        self.filename = filename
         self.text = text
-        self.pos = -1
-        self.line = 1
+        self.pos = Position(-1, 0, -1, filename, text)
         self.current = None
         self.advance()
 
     def advance(self):
-        self.pos += 1
-        self.current = self.text[self.pos] if self.pos < len(self.text) else None
+        self.pos.advance(self.current)
+        self.current = (
+            self.text[self.pos.idx] if self.pos.idx < len(self.text) else None
+        )
 
     def make_tokens(self):
         tokens = []
 
         while self.current is not None:
             if self.current in " \t\r":
-                self.advance()
-            elif self.current == "\n":
-                self.line += 1
                 self.advance()
             elif self.current == "+":
                 tokens.append(Token(TT_PLUS))
@@ -99,9 +82,10 @@ class Lexer:
             elif self.current in DIGITS:
                 tokens.append(self.make_number())
             else:
+                pos_start = self.pos.copy()
                 char = self.current
                 self.advance()
-                return [], IllegalCharError(f"'{char}' at ({self.line}:{self.pos})")
+                return [], IllegalCharError(pos_start, self.pos, f"{char}")
 
         return tokens, None
 
@@ -130,7 +114,7 @@ class Lexer:
 #######################################
 
 
-def run(text):
-    lexer = Lexer(text)
+def run(filename, text):
+    lexer = Lexer(filename, text)
     tokens, error = lexer.make_tokens()
     return tokens, error
